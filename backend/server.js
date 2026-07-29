@@ -7,6 +7,7 @@ const initDoseScheduler = require('./jobs/cronJobs');
 // Route Imports
 const authRoutes = require('./routes/authRoutes');
 const medicationRoutes = require('./routes/medicationRoutes');
+const doseRoutes = require('./routes/doseRoutes');
 
 // Models (for health check)
 const User = require('./models/User');
@@ -29,6 +30,7 @@ app.use(express.json());
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/medications', medicationRoutes);
+app.use('/api/doses', doseRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {
