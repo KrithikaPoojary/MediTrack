@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('./config/db');
+const initDoseScheduler = require('./jobs/cronJobs');
 
 // Route Imports
 const authRoutes = require('./routes/authRoutes');
@@ -17,6 +18,9 @@ const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB
 connectDB();
+
+// Initialize Cron Jobs
+initDoseScheduler();
 
 // Middleware
 app.use(cors());
