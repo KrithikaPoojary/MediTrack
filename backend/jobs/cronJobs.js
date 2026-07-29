@@ -2,6 +2,8 @@ const cron = require('node-cron');
 const Medication = require('../models/Medication');
 const DoseLog = require('../models/DoseLog');
 
+const GRACE_PERIOD_MINUTES = parseInt(process.env.GRACE_PERIOD_MINUTES) || 30;
+
 /**
  * Helper to get current HH:mm time string in 24-hour format
  */
@@ -23,27 +25,52 @@ const getScheduledDateForToday = (timeStr) => {
 };
 
 /**
+ * Check and mark pending doses as 'missed' if past the grace period (30 minutes)
+ */
+const checkMissedDoses = async () => {
+  try {
+    const cutoffTime = new Date(Date.now() - GRACE_PERIOD_MINUTES * 60 * 1000);
+
+    // Find all 'pending' doses whose scheduledTime is older than cutoffTime
+    const overdueDoses = await DoseLog.find({
+      status: 'pending',
+      scheduledTime: { $lt: cutoffTime },
+    }).populate('medication patient');
+
+    for (const dose of overdueDoses) {
+      dose.status = 'missed';
+      await dose.save();
+      console.log(
+        `[Cron Job] Marked dose as 'missed' for Patient '${dose.patient?.name}' - Medication '${dose.medication?.name}' (Scheduled: ${dose.scheduledTime})`
+      );
+    }
+  } catch (error) {
+    console.error('[Cron Job Error checking missed doses]:', error.message);
+  }
+};
+
+/**
  * Initialize background cron job that runs every minute
- * Checks all active medications and generates 'pending' DoseLogs when due
+ * 1. Generates 'pending' DoseLogs when medication doses are due
+ * 2. Detects and marks overdue doses as 'missed' after 30-minute grace period
  */
 const initDoseScheduler = () => {
-  console.log('Initializing Dose Scheduler Cron Job (runs every minute)...');
+  console.log(
+    `Initializing Dose Scheduler Cron Job (every minute, grace period: ${GRACE_PERIOD_MINUTES} mins)...`
+  );
 
   // Run every minute: '* * * * *'
   cron.schedule('* * * * *', async () => {
     try {
       const currentHHMM = getCurrentHHMM();
-      console.log(`[Cron Job] Checking medication schedules for time: ${currentHHMM}`);
 
-      // Find all active medications
+      // 1. Check active medications for due doses
       const activeMedications = await Medication.find({ isActive: true });
 
       for (const med of activeMedications) {
-        // Check if current time matches any of the medication's scheduled times
         if (med.scheduleTimes && med.scheduleTimes.includes(currentHHMM)) {
           const scheduledTimeDate = getScheduledDateForToday(currentHHMM);
 
-          // Check if a DoseLog entry already exists for this scheduled dose today
           const existingLog = await DoseLog.findOne({
             patient: med.patient,
             medication: med._id,
@@ -54,18 +81,21 @@ const initDoseScheduler = () => {
           });
 
           if (!existingLog) {
-            const newLog = await DoseLog.create({
+            await DoseLog.create({
               patient: med.patient,
               medication: med._id,
               scheduledTime: scheduledTimeDate,
               status: 'pending',
             });
             console.log(
-              `[Cron Job] Created 'pending' DoseLog for Medication '${med.name}' (Patient: ${med.patient}) at ${currentHHMM}`
+              `[Cron Job] Created 'pending' DoseLog for Medication '${med.name}' at ${currentHHMM}`
             );
           }
         }
       }
+
+      // 2. Check for overdue pending doses and mark as 'missed'
+      await checkMissedDoses();
     } catch (error) {
       console.error('[Cron Job Error]:', error.message);
     }
