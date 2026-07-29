@@ -4,9 +4,10 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 
 // Route Imports
-const authRoutes = require('./routes/authRoutes'); 
+const authRoutes = require('./routes/authRoutes');
+const medicationRoutes = require('./routes/medicationRoutes');
 
-// Models
+// Models (for health check)
 const User = require('./models/User');
 const Medication = require('./models/Medication');
 const DoseLog = require('./models/DoseLog');
@@ -23,13 +24,11 @@ app.use(express.json());
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/medications', medicationRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    message: 'MediTrack Backend Server is running!',
-  });
+  res.status(200).json({ status: 'ok', message: 'MediTrack Backend Server is running!' });
 });
 
 // Database & Models health check route
@@ -49,10 +48,7 @@ app.get('/api/db-health', async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: error.message,
-    });
+    res.status(500).json({ status: 'error', message: error.message });
   }
 });
 
