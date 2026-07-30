@@ -8,6 +8,7 @@ const initDoseScheduler = require('./jobs/cronJobs');
 const authRoutes = require('./routes/authRoutes');
 const medicationRoutes = require('./routes/medicationRoutes');
 const doseRoutes = require('./routes/doseRoutes');
+const caregiverRoutes = require('./routes/caregiverRoutes');
 
 // Models (for health check)
 const User = require('./models/User');
@@ -31,6 +32,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/medications', medicationRoutes);
 app.use('/api/doses', doseRoutes);
+app.use('/api/caregiver', caregiverRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {
@@ -47,11 +49,7 @@ app.get('/api/db-health', async (req, res) => {
     res.status(200).json({
       status: 'ok',
       message: 'MongoDB models & connection initialized successfully!',
-      stats: {
-        users: userCount,
-        medications: medCount,
-        doseLogs: logCount,
-      },
+      stats: { users: userCount, medications: medCount, doseLogs: logCount },
     });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });
